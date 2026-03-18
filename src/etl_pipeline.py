@@ -61,63 +61,57 @@ def extract(spark: SparkSession, csv_path: str) -> DataFrame:
 
 def transform(df: DataFrame) -> dict[str, DataFrame]:
     """Split the data by neighborhood and save each as a separate CSV file."""
-    
-    # Dictionary to store each neighborhood name and its filtered DataFrame.
     partitions = {}
-
-    # Create the main output folder if it does not already exist.
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Loop through every neighborhood listed in the predefined constant.
     for hood in NEIGHBORHOODS:
-
-        # Keep only the rows for the current neighborhood.
-        hood_df = df.filter(F.col("neighborhood") == hood)
-
-        # Save this filtered DataFrame in the dictionary
-        # so it can later be loaded into PostgreSQL.
+        # Keep the original typed DataFrame for the PostgreSQL load step
+        hood_df = df.filter(F.col("neighborhood") == hood).orderBy("house_id")
         partitions[hood] = hood_df
 
-        # Spark normally writes CSV output into a folder, not a single file.
-        # So we first write to a temporary folder.
-        temp_dir = OUTPUT_DIR / f"tmp_{hood.replace(' ', '_').lower()}"
+        # Create a separate DataFrame for CSV output so booleans match expected format
+        csv_df = (
+            hood_df
+            .withColumn(
+                "has_pool",
+                F.when(F.col("has_pool") == True, F.lit("True")).otherwise(F.lit("False"))
+            )
+            .withColumn(
+                "recently_renovated",
+                F.when(F.col("recently_renovated") == True, F.lit("True")).otherwise(F.lit("False"))
+            )
+            .withColumn(
+                "has_children",
+                F.when(F.col("has_children") == True, F.lit("True")).otherwise(F.lit("False"))
+            )
+            .withColumn(
+                "first_time_buyer",
+                F.when(F.col("first_time_buyer") == True, F.lit("True")).otherwise(F.lit("False"))
+            )
+        )
 
-        # This is the final expected CSV file path, like downtown.csv
+        temp_dir = OUTPUT_DIR / f"tmp_{hood.replace(' ', '_').lower()}"
         output_file = OUTPUT_FILES[hood]
 
-        # If an old temporary folder exists from a previous run, remove it.
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
 
-        # If an old final output file already exists, remove it first.
         if output_file.exists():
             output_file.unlink()
 
-        # Write this neighborhood DataFrame to the temporary folder.
-        # coalesce(1) forces Spark to create only one CSV part file.
         (
-            hood_df.coalesce(1)
+            csv_df.coalesce(1)
             .write
             .mode("overwrite")
             .option("header", True)
             .csv(str(temp_dir))
         )
 
-        # Inside the temp folder, Spark creates a file named something like:
-        # part-00000-....csv
-        # We locate that generated CSV file.
         part_file = next(temp_dir.glob("part-*.csv"))
-
-        # Rename/move the generated Spark CSV file to the final required filename,
-        # such as output/by_neighborhood/downtown.csv
         part_file.replace(output_file)
-
-        # Remove the now-empty temporary folder and Spark metadata files.
         shutil.rmtree(temp_dir)
 
-    # Return all neighborhood DataFrames for the Load step.
     return partitions
-
 
 def load(partitions: dict[str, DataFrame], jdbc_url: str, pg_props: dict) -> None:
     """Insert each neighborhood dataset into its own PostgreSQL table."""
