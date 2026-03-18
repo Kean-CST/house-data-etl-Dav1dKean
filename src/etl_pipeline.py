@@ -32,10 +32,10 @@ OUTPUT_FILES = {hood: OUTPUT_DIR / f"{hood.replace(' ', '_').lower()}.csv" for h
 PG_TABLES = {hood: f"public.{hood.replace(' ', '_').lower()}" for hood in NEIGHBORHOODS}
 
 PG_COLUMN_SCHEMA = (
-    "house_id STRING, neighborhood STRING, price INTEGER, square_feet INTEGER, "
+    "house_id TEXT, neighborhood TEXT, price INTEGER, square_feet INTEGER, "
     "num_bedrooms INTEGER, num_bathrooms INTEGER, house_age INTEGER, "
     "garage_spaces INTEGER, lot_size_acres NUMERIC(6,2), has_pool BOOLEAN, "
-    "recently_renovated BOOLEAN, energy_rating STRING, location_score INTEGER, "
+    "recently_renovated BOOLEAN, energy_rating TEXT, location_score INTEGER, "
     "school_rating INTEGER, crime_rate INTEGER, "
     "distance_downtown_miles NUMERIC(6,2), sale_date DATE, days_on_market INTEGER"
 )
@@ -144,7 +144,8 @@ def load(partitions: dict[str, DataFrame], jdbc_url: str, pg_props: dict) -> Non
             .option("driver", pg_props["driver"])
 
             # Explicit schema to use when creating the PostgreSQL table
-            .option("createTableColumnTypes", PG_COLUMN_SCHEMA)
+            # Wrong code, do not use this line
+            #.option("createTableColumnTypes", PG_COLUMN_SCHEMA)
 
             # Overwrite the table if it already exists from a previous run
             .mode("overwrite")
