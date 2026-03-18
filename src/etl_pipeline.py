@@ -71,24 +71,30 @@ def transform(df: DataFrame) -> dict[str, DataFrame]:
 
         # Create a separate DataFrame for CSV output so booleans match expected format
         csv_df = (
-            hood_df
-            .withColumn(
-                "has_pool",
-                F.when(F.col("has_pool") == True, F.lit("True")).otherwise(F.lit("False"))
-            )
-            .withColumn(
-                "recently_renovated",
-                F.when(F.col("recently_renovated") == True, F.lit("True")).otherwise(F.lit("False"))
-            )
-            .withColumn(
-                "has_children",
-                F.when(F.col("has_children") == True, F.lit("True")).otherwise(F.lit("False"))
-            )
-            .withColumn(
-                "first_time_buyer",
-                F.when(F.col("first_time_buyer") == True, F.lit("True")).otherwise(F.lit("False"))
-            )
-        )
+    hood_df
+    .withColumn(
+        "has_pool",
+        F.when(F.col("has_pool"), F.lit("True")).otherwise(F.lit("False")),
+    )
+    .withColumn(
+        "recently_renovated",
+        F.when(
+            F.col("recently_renovated"),
+            F.lit("True"),
+        ).otherwise(F.lit("False")),
+    )
+    .withColumn(
+        "has_children",
+        F.when(F.col("has_children"), F.lit("True")).otherwise(F.lit("False")),
+    )
+    .withColumn(
+        "first_time_buyer",
+        F.when(
+            F.col("first_time_buyer"),
+            F.lit("True"),
+        ).otherwise(F.lit("False")),
+    )
+)
 
         temp_dir = OUTPUT_DIR / f"tmp_{hood.replace(' ', '_').lower()}"
         output_file = OUTPUT_FILES[hood]
